@@ -41,6 +41,60 @@ FT_BEGIN_HEADER
 
   /**************************************************************************
    *
+   * EXECUTION SUBTABLES
+   *
+   * These sub-tables relate to instruction execution.
+   *
+   */
+
+
+#define TT_MAX_CODE_RANGES  3
+
+
+  /**************************************************************************
+   *
+   * There can only be 3 active code ranges at once:
+   *   - the Font Program
+   *   - the CVT Program
+   *   - a glyph's instructions set
+   */
+  typedef enum  TT_CodeRange_Tag_
+  {
+    tt_coderange_none = 0,
+    tt_coderange_font,
+    tt_coderange_cvt,
+    tt_coderange_glyph
+
+  } TT_CodeRange_Tag;
+
+
+  typedef struct  TT_CodeRange_
+  {
+    FT_Byte*  base;
+    FT_Long   size;
+
+  } TT_CodeRange;
+
+  typedef TT_CodeRange  TT_CodeRangeTable[TT_MAX_CODE_RANGES];
+
+
+  /**************************************************************************
+   *
+   * Defines a function/instruction definition record.
+   */
+  typedef struct  TT_DefRecord_
+  {
+    FT_Int    range;          /* in which code range is it located?     */
+    FT_Long   start;          /* where does it start?                   */
+    FT_Long   end;            /* where does it end?                     */
+    FT_UInt   opc;            /* function #, or instruction code        */
+    FT_Bool   active;         /* is it active?                          */
+
+  } TT_DefRecord, *TT_DefArray;
+
+
+  /**************************************************************************
+   *
    * Function types used by the interpreter, depending on various modes
    * (e.g. the rounding mode, whether to render a vertical or horizontal
    * line etc).
@@ -111,6 +165,7 @@ FT_BEGIN_HEADER
     TT_Face            face;       /* ! */
     TT_Size            size;       /* ! */
     FT_Memory          memory;
+    TT_Interpreter     interpreter;
 
     /* instructions state */
 
@@ -328,20 +383,8 @@ FT_BEGIN_HEADER
     /* or in native ClearType mode.                                      */
     FT_Int             backward_compatibility;
 
-    /* Using v40 implies subpixel hinting, unless FT_RENDER_MODE_MONO    */
-    /* has been requested.  Used to detect interpreter version switches. */
-    FT_Bool            subpixel_hinting_lean;
+    FT_Render_Mode     mode;  /* target render mode */
 
-    /* Long side of a LCD subpixel is vertical (e.g., screen is rotated). */
-    FT_Bool            vertical_lcd_lean;
-
-    /* ClearType hinting and grayscale rendering, as used by Universal */
-    /* Windows Platform apps (Windows 8 and above).  Like the standard */
-    /* colorful ClearType mode, it utilizes a vastly increased virtual */
-    /* resolution on the x axis.  Different from bi-level hinting and  */
-    /* grayscale rendering, the old mode from Win9x days that roughly  */
-    /* adheres to the physical pixel grid on both axes.                */
-    FT_Bool            grayscale_cleartype;
 #endif /* TT_SUPPORT_SUBPIXEL_HINTING_MINIMAL */
 
     /* We maintain two counters (in addition to the instruction counter) */
@@ -360,14 +403,9 @@ FT_BEGIN_HEADER
 
 #ifdef TT_USE_BYTECODE_INTERPRETER
   FT_LOCAL( void )
-  TT_Goto_CodeRange( TT_ExecContext  exec,
-                     FT_Int          range,
-                     FT_Long         IP );
-
-  FT_LOCAL( void )
   TT_Set_CodeRange( TT_ExecContext  exec,
                     FT_Int          range,
-                    void*           base,
+                    FT_Byte*        base,
                     FT_Long         length );
 
   FT_LOCAL( void )
@@ -411,10 +449,11 @@ FT_BEGIN_HEADER
 
   FT_LOCAL( void )
   TT_Save_Context( TT_ExecContext  exec,
-                   TT_Size         ins );
+                   TT_Size         size );
 
   FT_LOCAL( FT_Error )
-  TT_Run_Context( TT_ExecContext  exec );
+  TT_Run_Context( TT_ExecContext  exec,
+                  TT_Size         size );
 #endif /* TT_USE_BYTECODE_INTERPRETER */
 
 
